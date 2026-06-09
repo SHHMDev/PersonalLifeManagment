@@ -1,0 +1,47 @@
+First read and follow:
+
+* PROJECT_CONTEXT.md
+* ARCHITECTURE.md
+* TASK.md
+* DEV_LOG.md
+
+Rules:
+
+1. Always read all context files before making changes.
+
+2. Append every completed work item into DEV_LOG.md.
+
+3. Never remove existing DEV_LOG entries.
+
+4. Build a production-ready Android application using:
+
+   * TypeScript
+   * Capacitor
+   * SQLite
+   * RTL support
+
+5. UI must match modern Telegram Android design language:
+
+   * Floating circular action button
+   * Soft shadows
+   * Rounded cards
+   * White and Facebook-blue theme
+
+6. All user-facing texts must be Persian.
+
+7. Source code must remain English.
+
+8. Categories are user-defined and dynamic.
+
+9. Maximum subject nesting depth is 3.
+
+10. Use a lightweight rich text editor. Do not use CKEditor.
+
+11. Create clean architecture and reusable components.
+
+12. If architecture changes are required:
+
+    * Update ARCHITECTURE.md
+    * Log the reason inside DEV_LOG.md
+
+Start by generating the project structure and implementing the design system.

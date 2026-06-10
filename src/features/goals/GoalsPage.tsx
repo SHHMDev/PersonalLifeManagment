@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState,useEffect } from 'react';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { CategoryChips } from '@/components/CategoryChips';
@@ -41,7 +41,9 @@ export function GoalsPage(): JSX.Element {
 
   const categories = categoriesQuery.data ?? [];
   const goals = goalsQuery.data ?? [];
-  const safeCategoryId = categories.some((category) => category.id === form.categoryId) ? form.categoryId : categories[0]?.id ?? 0;
+  const safeCategoryId = form.categoryId !== 0 && categories.some(c => c.id === form.categoryId) 
+    ? form.categoryId 
+    : categories[0]?.id ?? 0;
 
   const categoryOptions = useMemo(
     () => categories.map((category) => ({ label: category.title, value: category.id })),
@@ -69,6 +71,14 @@ export function GoalsPage(): JSX.Element {
     }, [resetForm])
   );
 
+    useEffect(() => {
+    if (categories.length > 0 && form.categoryId === 0) {
+      setForm(prev => ({ ...prev, categoryId: categories[0].id }));
+    }
+  }, [categories, form.categoryId]);
+
+
+
   const reloadAll = async (): Promise<void> => {
     await categoriesQuery.reload();
     await goalsQuery.reload();
@@ -90,6 +100,11 @@ export function GoalsPage(): JSX.Element {
     await deleteCategory('goal_categories', categoryId);
     if (selectedCategoryFilter === categoryId) setSelectedCategoryFilter(0);
     if (form.categoryId === categoryId) setForm((prev) => ({ ...prev, categoryId: 0 }));
+    if (form.categoryId === categoryId)
+        {
+              const firstCategoryId = categories.filter(c => c.id !== categoryId)[0]?.id ?? 0;
+              setForm(prev => ({ ...prev, categoryId: firstCategoryId }));
+       }
     await reloadAll();
   };
 
@@ -98,7 +113,7 @@ export function GoalsPage(): JSX.Element {
       setError('عنوان الزامی است.');
       return;
     }
-    if (!safeCategoryId) {
+    if (!form.categoryId) {
       setError('ابتدا یک دسته‌بندی بسازید.');
       return;
     }
@@ -112,6 +127,19 @@ export function GoalsPage(): JSX.Element {
     await goalsQuery.reload();
     resetForm();
     setIsGoalModalOpen(false);
+  };
+
+  const handleCategoryChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const newCategoryId = Number(event.target.value);
+    setForm(prev => ({ ...prev, categoryId: newCategoryId }));
+  };
+
+  const handleTitleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const newTitle = event.target.value;
+    setForm(prev => ({ ...prev, title: newTitle }));
+    if (error && newTitle.trim()) {
+      setError('');
+    }
   };
 
   return (
@@ -159,8 +187,8 @@ export function GoalsPage(): JSX.Element {
       </Card>
 
       <Modal open={isGoalModalOpen} title={editingGoal ? 'ویرایش هدف' : 'هدف جدید'} onClose={() => { setIsGoalModalOpen(false); resetForm(); }} footer={<><Button onClick={() => void saveGoal()}>{editingGoal ? 'ذخیره تغییرات' : 'ایجاد هدف'}</Button><Button onClick={() => { resetForm(); setIsGoalModalOpen(false); }} variant="secondary">انصراف</Button></>}>
-        <SelectField label="دسته" value={safeCategoryId} onChange={(event) => setForm((prev) => ({ ...prev, categoryId: Number(event.target.value) }))} options={categoryOptions.length ? categoryOptions : [{ value: 0, label: 'ابتدا دسته بسازید' }]} />
-        <TextField label="عنوان" value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} />
+        <SelectField label="دسته" value={form.categoryId} onChange={handleCategoryChange} options={categoryOptions.length ? categoryOptions : [{ value: 0, label: 'ابتدا دسته بسازید' }]} />
+        <TextField label="عنوان" value={form.title} onChange={handleTitleChange} />
         <RichTextField label="توضیحات" value={form.description} onChange={(value) => setForm((prev) => ({ ...prev, description: value }))} />
         {error ? <p style={{ margin: 0, color: 'var(--color-danger)' }}>{error}</p> : null}
       </Modal>

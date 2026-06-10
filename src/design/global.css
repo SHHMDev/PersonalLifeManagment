@@ -87,7 +87,8 @@ textarea {
 .toolbar {
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
+  padding: 8px;
+  border-bottom: 1px solid #ccc;
 }
 
 .card {
@@ -314,7 +315,21 @@ textarea {
   text-align: right;
 }
 
-.rich-text-field .ql-container,
+
+      .rich-text-field .ProseMirror {
+          min-height: 150px;
+          padding: 12px;
+          outline: none;
+          direction: rtl;
+          text-align: right;
+      }
+
+    .rich-text-field {
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+
+/* .rich-text-field .ql-container,
 .rich-text-field .ql-editor,
 .rich-text-field .ql-toolbar {
   direction: rtl;
@@ -338,7 +353,7 @@ textarea {
   left: auto;
   color: var(--color-text-secondary);
   font-style: normal;
-}
+} */
 
 .detail-card {
   display: grid;

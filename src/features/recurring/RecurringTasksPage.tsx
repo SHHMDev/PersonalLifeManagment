@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { CategoryChips } from '@/components/CategoryChips';
@@ -52,7 +52,18 @@ export function RecurringTasksPage(): JSX.Element {
 
   const categories = categoriesQuery.data ?? [];
   const items = recurringQuery.data ?? [];
-  const safeCategoryId = categories.some((category) => category.id === form.categoryId) ? form.categoryId : categories[0]?.id ?? 0;
+
+  // اصلاح: وقتی دسته‌ها لود می‌شن و دسته فعلی نامعتبره، مقدار پیش‌فرض رو set کن
+  useEffect(() => {
+    if (categories.length > 0 && form.categoryId === 0) {
+      setForm(prev => ({ ...prev, categoryId: categories[0].id }));
+    }
+  }, [categories, form.categoryId]);
+
+  // اصلاح: فقط برای نمایش استفاده بشه
+  const safeCategoryId = form.categoryId !== 0 && categories.some(c => c.id === form.categoryId)
+    ? form.categoryId
+    : categories[0]?.id ?? 0;
 
   const categoryOptions = useMemo(() => categories.map((category) => ({ label: category.title, value: category.id })), [categories]);
   const categoryTitleById = useMemo(() => new Map(categories.map((category) => [category.id, category.title])), [categories]);
@@ -61,7 +72,8 @@ export function RecurringTasksPage(): JSX.Element {
 
   const resetForm = useCallback((): void => {
     setEditingItem(null);
-    setForm({ ...emptyForm, categoryId: categories[0]?.id ?? 0 });
+    const defaultCategoryId = categories[0]?.id ?? 0;
+    setForm({ ...emptyForm, categoryId: defaultCategoryId });
     setError('');
   }, [categories]);
 
@@ -87,8 +99,42 @@ export function RecurringTasksPage(): JSX.Element {
   const removeCategory = async (categoryId: number): Promise<void> => {
     await deleteCategory('recurring_task_categories', categoryId);
     if (selectedCategoryFilter === categoryId) setSelectedCategoryFilter(0);
-    if (form.categoryId === categoryId) setForm((prev) => ({ ...prev, categoryId: 0 }));
+    if (form.categoryId === categoryId) {
+      const firstCategoryId = categories.filter(c => c.id !== categoryId)[0]?.id ?? 0;
+      setForm((prev) => ({ ...prev, categoryId: firstCategoryId }));
+    }
     await reloadAll();
+  };
+
+  // اصلاح: هندلر تغییر دسته
+  const handleCategoryChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const newCategoryId = Number(event.target.value);
+    setForm(prev => ({ ...prev, categoryId: newCategoryId }));
+    if (error) setError('');
+  };
+
+  // اصلاح: هندلر تغییر عنوان
+  const handleTitleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const newTitle = event.target.value;
+    setForm(prev => ({ ...prev, title: newTitle }));
+    if (error && newTitle.trim()) {
+      setError('');
+    }
+  };
+
+  // اصلاح: هندلر تغییر ساعت
+  const handleTimeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setForm(prev => ({ ...prev, timeOfDay: event.target.value }));
+  };
+
+  // اصلاح: هندلر تغییر نوع تکرار
+  const handleFrequencyChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    setForm(prev => ({ ...prev, frequencyType: event.target.value as FrequencyType }));
+  };
+
+  // اصلاح: هندلر تغییر وضعیت اعلان
+  const handleNotificationChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setForm(prev => ({ ...prev, notificationsEnabled: event.target.checked }));
   };
 
   const scheduleForItem = async (item: RecurringTask): Promise<void> => {
@@ -100,31 +146,53 @@ export function RecurringTasksPage(): JSX.Element {
   };
 
   const saveItem = async (): Promise<void> => {
+    // اصلاح: استفاده مستقیم از form.categoryId
     if (!hasMeaningfulText(form.title)) {
       setError('عنوان الزامی است.');
       return;
     }
-    if (!safeCategoryId) {
-      setError('ابتدا یک دسته‌بندی بسازید.');
+    if (!form.categoryId) {
+      setError('لطفاً یک دسته‌بندی انتخاب کنید.');
       return;
     }
 
-    const nextDueAt = getNextDueAt(form.frequencyType);
+    try {
+      const nextDueAt = getNextDueAt(form.frequencyType);
 
-    if (editingItem) {
-      const updatedItem: RecurringTask = { ...editingItem, categoryId: safeCategoryId, title: form.title, description: form.description, frequencyType: form.frequencyType, timeOfDay: form.timeOfDay, nextDueAt, notificationsEnabled: form.notificationsEnabled ? 1 : 0 };
-      await recurringRepository.update(updatedItem);
-      await scheduleForItem(updatedItem);
-    } else {
-      await recurringRepository.create({ categoryId: safeCategoryId, title: form.title, description: form.description, frequencyType: form.frequencyType, timeOfDay: form.timeOfDay, nextDueAt, notificationsEnabled: form.notificationsEnabled ? 1 : 0 });
-      const reloaded = await recurringRepository.list(search);
-      const createdItem = reloaded.find((item) => item.title === form.title && item.nextDueAt === nextDueAt) ?? reloaded[0];
-      if (createdItem) await scheduleForItem(createdItem);
+      if (editingItem) {
+        const updatedItem: RecurringTask = { 
+          ...editingItem, 
+          categoryId: form.categoryId,  // اصلاح: استفاده از form.categoryId
+          title: form.title.trim(),
+          description: form.description, 
+          frequencyType: form.frequencyType, 
+          timeOfDay: form.timeOfDay, 
+          nextDueAt, 
+          notificationsEnabled: form.notificationsEnabled ? 1 : 0 
+        };
+        await recurringRepository.update(updatedItem);
+        await scheduleForItem(updatedItem);
+      } else {
+        await recurringRepository.create({ 
+          categoryId: form.categoryId,  // اصلاح: استفاده از form.categoryId
+          title: form.title.trim(),
+          description: form.description, 
+          frequencyType: form.frequencyType, 
+          timeOfDay: form.timeOfDay, 
+          nextDueAt, 
+          notificationsEnabled: form.notificationsEnabled ? 1 : 0 
+        });
+        const reloaded = await recurringRepository.list(search);
+        const createdItem = reloaded.find((item) => item.title === form.title.trim() && item.nextDueAt === nextDueAt) ?? reloaded[0];
+        if (createdItem) await scheduleForItem(createdItem);
+      }
+
+      await recurringQuery.reload();
+      resetForm();
+      setIsItemModalOpen(false);
+    } catch (err) {
+      setError('خطا در ذخیره‌سازی: ' + (err as Error).message);
     }
-
-    await recurringQuery.reload();
-    resetForm();
-    setIsItemModalOpen(false);
   };
 
   const markCompletedNow = async (item: RecurringTask): Promise<void> => {
@@ -163,7 +231,19 @@ export function RecurringTasksPage(): JSX.Element {
                 </div>
               </button>
               <div className="toolbar">
-                <Button onClick={() => { setEditingItem(item); setForm({ title: item.title, description: item.description, categoryId: item.categoryId, frequencyType: item.frequencyType, timeOfDay: item.timeOfDay, notificationsEnabled: Boolean(item.notificationsEnabled) }); setError(''); setIsItemModalOpen(true); }} variant="secondary">ویرایش</Button>
+                <Button onClick={() => { 
+                  setEditingItem(item); 
+                  setForm({ 
+                    title: item.title, 
+                    description: item.description || '', 
+                    categoryId: item.categoryId, 
+                    frequencyType: item.frequencyType, 
+                    timeOfDay: item.timeOfDay, 
+                    notificationsEnabled: Boolean(item.notificationsEnabled) 
+                  }); 
+                  setError(''); 
+                  setIsItemModalOpen(true); 
+                }} variant="secondary">ویرایش</Button>
                 <Button variant="secondary" onClick={() => void markCompletedNow(item)}>ثبت انجام امروز</Button>
                 <Button variant="danger" onClick={() => void recurringRepository.remove(item.id).then(recurringQuery.reload)}>حذف</Button>
               </div>
@@ -173,21 +253,73 @@ export function RecurringTasksPage(): JSX.Element {
         </div>
       </Card>
 
-      <Modal open={isItemModalOpen} title={editingItem ? 'ویرایش وظیفه تکرارشونده' : 'وظیفه تکرارشونده جدید'} onClose={() => { setIsItemModalOpen(false); resetForm(); }} footer={<><Button onClick={() => void saveItem()}>{editingItem ? 'ذخیره تغییرات' : 'ایجاد آیتم'}</Button><Button onClick={() => { setIsItemModalOpen(false); resetForm(); }} variant="secondary">انصراف</Button></>}>
-        <SelectField label="دسته" value={safeCategoryId} onChange={(event) => setForm((prev) => ({ ...prev, categoryId: Number(event.target.value) }))} options={categoryOptions.length ? categoryOptions : [{ value: 0, label: 'ابتدا دسته بسازید' }]} />
-        <TextField label="عنوان" value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} />
-        <RichTextField label="توضیحات" value={form.description} onChange={(value) => setForm((prev) => ({ ...prev, description: value }))} />
-        <SelectField label="نوع تکرار" value={form.frequencyType} onChange={(event) => setForm((prev) => ({ ...prev, frequencyType: event.target.value as FrequencyType }))} options={frequencyOptions} />
-        <TextField label="ساعت" type="time" value={form.timeOfDay} onChange={(event) => setForm((prev) => ({ ...prev, timeOfDay: event.target.value }))} />
+      <Modal 
+        open={isItemModalOpen} 
+        title={editingItem ? 'ویرایش وظیفه تکرارشونده' : 'وظیفه تکرارشونده جدید'} 
+        onClose={() => { setIsItemModalOpen(false); resetForm(); }} 
+        footer={
+          <>
+            <Button onClick={() => void saveItem()}>{editingItem ? 'ذخیره تغییرات' : 'ایجاد آیتم'}</Button>
+            <Button onClick={() => { setIsItemModalOpen(false); resetForm(); }} variant="secondary">انصراف</Button>
+          </>
+        }
+      >
+        <SelectField 
+          label="دسته" 
+          value={form.categoryId}  // اصلاح: استفاده از form.categoryId
+          onChange={handleCategoryChange}  // اصلاح: استفاده از هندلر اختصاصی
+          options={categoryOptions.length ? categoryOptions : [{ value: 0, label: 'ابتدا دسته بسازید' }]} 
+        />
+        <TextField 
+          label="عنوان" 
+          value={form.title} 
+          onChange={handleTitleChange}  // اصلاح: استفاده از هندلر اختصاصی
+        />
+        <RichTextField 
+          label="توضیحات" 
+          value={form.description} 
+          onChange={(value) => setForm((prev) => ({ ...prev, description: value }))} 
+        />
+        <SelectField 
+          label="نوع تکرار" 
+          value={form.frequencyType} 
+          onChange={handleFrequencyChange}  // اصلاح: استفاده از هندلر اختصاصی
+          options={frequencyOptions} 
+        />
+        <TextField 
+          label="ساعت" 
+          type="time" 
+          value={form.timeOfDay} 
+          onChange={handleTimeChange}  // اصلاح: استفاده از هندلر اختصاصی
+        />
         <label className="row" style={{ alignItems: 'center' }}>
-          <input style={{ width: 'auto' }} type="checkbox" checked={form.notificationsEnabled} onChange={(event) => setForm((prev) => ({ ...prev, notificationsEnabled: event.target.checked }))} />
+          <input 
+            style={{ width: 'auto' }} 
+            type="checkbox" 
+            checked={form.notificationsEnabled} 
+            onChange={handleNotificationChange}  // اصلاح: استفاده از هندلر اختصاصی
+          />
           اعلان فعال باشد
         </label>
         {error ? <p style={{ margin: 0, color: 'var(--color-danger)' }}>{error}</p> : null}
       </Modal>
 
-      <Modal open={isCategoryModalOpen} title="مدیریت دسته‌های تکرارشونده" onClose={() => { setIsCategoryModalOpen(false); setCategoryTitle(''); setCategoryError(''); }} footer={<><Button type="button" onClick={() => void addCategory()}>افزودن دسته</Button><Button type="button" onClick={() => { setIsCategoryModalOpen(false); setCategoryTitle(''); setCategoryError(''); }} variant="secondary">بستن</Button></>}>
-        <TextField label="نام دسته جدید" value={categoryTitle} onChange={(event) => { setCategoryTitle(event.target.value); if (categoryError) setCategoryError(''); }} />
+      <Modal 
+        open={isCategoryModalOpen} 
+        title="مدیریت دسته‌های تکرارشونده" 
+        onClose={() => { setIsCategoryModalOpen(false); setCategoryTitle(''); setCategoryError(''); }} 
+        footer={
+          <>
+            <Button type="button" onClick={() => void addCategory()}>افزودن دسته</Button>
+            <Button type="button" onClick={() => { setIsCategoryModalOpen(false); setCategoryTitle(''); setCategoryError(''); }} variant="secondary">بستن</Button>
+          </>
+        }
+      >
+        <TextField 
+          label="نام دسته جدید" 
+          value={categoryTitle} 
+          onChange={(event) => { setCategoryTitle(event.target.value); if (categoryError) setCategoryError(''); }} 
+        />
         {categoryError ? <p style={{ margin: 0, color: 'var(--color-danger)' }}>{categoryError}</p> : null}
         <div className="list">
           {categories.map((category) => (
@@ -199,7 +331,11 @@ export function RecurringTasksPage(): JSX.Element {
         </div>
       </Modal>
 
-      <Modal open={isDetailsModalOpen} title={selectedItem?.title ?? 'جزئیات آیتم'} onClose={() => { setIsDetailsModalOpen(false); setSelectedItem(null); }}>
+      <Modal 
+        open={isDetailsModalOpen} 
+        title={selectedItem?.title ?? 'جزئیات آیتم'} 
+        onClose={() => { setIsDetailsModalOpen(false); setSelectedItem(null); }}
+      >
         <p className="detail-category">{selectedItem ? categoryTitleById.get(selectedItem.categoryId) ?? 'بدون دسته' : ''}</p>
         <div className="detail-content" dangerouslySetInnerHTML={{ __html: selectedItem?.description || '<p>بدون توضیح</p>' }} />
       </Modal>

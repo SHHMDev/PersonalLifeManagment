@@ -1,5 +1,6 @@
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import { useEffect } from 'react';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
 
 type RichTextFieldProps = {
   label: string;
@@ -7,28 +8,66 @@ type RichTextFieldProps = {
   onChange: (value: string) => void;
 };
 
-const modules = {
-  toolbar: [['bold', 'italic'], [{ list: 'bullet' }, { list: 'ordered' }], ['clean']],
-  clipboard: {
-    matchVisual: false
-  }
-};
+export function RichTextField({
+  label,
+  value,
+  onChange
+}: RichTextFieldProps): JSX.Element {
+  const editor = useEditor({
+    extensions: [StarterKit],
+    content: value,
+    immediatelyRender: false,
+    onUpdate: ({ editor }) => {
+      onChange(editor.getHTML());
+    }
+  });
 
-const formats = ['bold', 'italic', 'list', 'bullet'];
+  useEffect(() => {
+    if (!editor) return;
 
-export function RichTextField({ label, value, onChange }: RichTextFieldProps): JSX.Element {
+    const current = editor.getHTML();
+
+    if (current !== value) {
+      editor.commands.setContent(value, false);
+    }
+  }, [value, editor]);
+
   return (
     <div>
       <label className="label">{label}</label>
+
       <div className="rich-text-field">
-        <ReactQuill
-          theme="snow"
-          value={value}
-          onChange={onChange}
-          modules={modules}
-          formats={formats}
-          preserveWhitespace
-        />
+        <div className="toolbar">
+          <button
+            type="button"
+            onClick={() => editor?.chain().focus().toggleBold().run()}
+          >
+            Bold
+          </button>
+
+          <button
+            type="button"
+            onClick={() => editor?.chain().focus().toggleItalic().run()}
+          >
+            Italic
+          </button>
+
+          <button
+            type="button"
+            onClick={() => editor?.chain().focus().toggleBulletList().run()}
+          >
+            Bullet
+          </button>
+
+          <button
+            type="button"
+            onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+          >
+            Ordered
+          </button>
+        </div>
+
+        <EditorContent editor={editor} />
       </div>
     </div>
   );

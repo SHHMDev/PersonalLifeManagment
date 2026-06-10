@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { CategoryChips } from '@/components/CategoryChips';
@@ -44,7 +44,18 @@ export function TasksPage(): JSX.Element {
 
   const categories = categoriesQuery.data ?? [];
   const tasks = tasksQuery.data ?? [];
-  const safeCategoryId = categories.some((category) => category.id === form.categoryId) ? form.categoryId : categories[0]?.id ?? 0;
+
+  // اصلاح: وقتی دسته‌ها لود می‌شن و دسته فعلی نامعتبره، مقدار پیش‌فرض رو set کن
+  useEffect(() => {
+    if (categories.length > 0 && form.categoryId === 0) {
+      setForm(prev => ({ ...prev, categoryId: categories[0].id }));
+    }
+  }, [categories, form.categoryId]);
+
+  // اصلاح: فقط برای نمایش استفاده بشه
+  const safeCategoryId = form.categoryId !== 0 && categories.some(c => c.id === form.categoryId)
+    ? form.categoryId
+    : categories[0]?.id ?? 0;
 
   const categoryOptions = useMemo(() => categories.map((category) => ({ label: category.title, value: category.id })), [categories]);
   const categoryTitleById = useMemo(() => new Map(categories.map((category) => [category.id, category.title])), [categories]);
@@ -56,7 +67,8 @@ export function TasksPage(): JSX.Element {
 
   const resetTaskForm = useCallback((): void => {
     setEditingTask(null);
-    setForm({ ...emptyForm, categoryId: categories[0]?.id ?? 0 });
+    const defaultCategoryId = categories[0]?.id ?? 0;
+    setForm({ ...emptyForm, categoryId: defaultCategoryId });
     setError('');
   }, [categories]);
 
@@ -82,31 +94,88 @@ export function TasksPage(): JSX.Element {
   const removeCategory = async (categoryId: number): Promise<void> => {
     await deleteCategory('task_categories', categoryId);
     if (selectedCategoryFilter === categoryId) setSelectedCategoryFilter(0);
-    if (form.categoryId === categoryId) setForm((prev) => ({ ...prev, categoryId: 0 }));
+    if (form.categoryId === categoryId) {
+      const firstCategoryId = categories.filter(c => c.id !== categoryId)[0]?.id ?? 0;
+      setForm((prev) => ({ ...prev, categoryId: firstCategoryId }));
+    }
     await reloadAll();
   };
 
+  // اصلاح: هندلر تغییر دسته
+  const handleCategoryChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const newCategoryId = Number(event.target.value);
+    setForm(prev => ({ ...prev, categoryId: newCategoryId }));
+    if (error) setError('');
+  };
+
+  // اصلاح: هندلر تغییر عنوان
+  const handleTitleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const newTitle = event.target.value;
+    setForm(prev => ({ ...prev, title: newTitle }));
+    if (error && newTitle.trim()) {
+      setError('');
+    }
+  };
+
+  // اصلاح: هندلر تغییر اهمیت
+  const handleImportanceChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setForm(prev => ({ ...prev, importance: clampScore(Number(event.target.value)) }));
+  };
+
+  // اصلاح: هندلر تغییر فوریت
+  const handleUrgencyChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setForm(prev => ({ ...prev, urgency: clampScore(Number(event.target.value)) }));
+  };
+
+  // اصلاح: هندلر تغییر منفعت
+  const handleBenefitChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setForm(prev => ({ ...prev, benefit: clampScore(Number(event.target.value)) }));
+  };
+
   const saveTask = async (): Promise<void> => {
+    // اصلاح: استفاده مستقیم از form.categoryId
     if (!hasMeaningfulText(form.title)) {
       setError('عنوان الزامی است.');
       return;
     }
-    if (!safeCategoryId) {
-      setError('ابتدا یک دسته‌بندی بسازید.');
+    if (!form.categoryId) {
+      setError('لطفاً یک دسته‌بندی انتخاب کنید.');
       return;
     }
 
-    const computed = calculatePriorityScore(form.importance, form.urgency, form.benefit);
+    try {
+      const computed = calculatePriorityScore(form.importance, form.urgency, form.benefit);
 
-    if (editingTask) {
-      await tasksRepository.update({ ...editingTask, title: form.title, description: form.description, categoryId: safeCategoryId, importance: form.importance, urgency: form.urgency, benefit: form.benefit, priorityScore: computed });
-    } else {
-      await tasksRepository.create({ title: form.title, description: form.description, categoryId: safeCategoryId, importance: form.importance, urgency: form.urgency, benefit: form.benefit, priorityScore: computed, createdAt: nowIso() });
+      if (editingTask) {
+        await tasksRepository.update({ 
+          ...editingTask, 
+          title: form.title.trim(),
+          description: form.description, 
+          categoryId: form.categoryId,  // اصلاح: استفاده از form.categoryId
+          importance: form.importance, 
+          urgency: form.urgency, 
+          benefit: form.benefit, 
+          priorityScore: computed 
+        });
+      } else {
+        await tasksRepository.create({ 
+          title: form.title.trim(),
+          description: form.description, 
+          categoryId: form.categoryId,  // اصلاح: استفاده از form.categoryId
+          importance: form.importance, 
+          urgency: form.urgency, 
+          benefit: form.benefit, 
+          priorityScore: computed, 
+          createdAt: nowIso() 
+        });
+      }
+
+      await tasksQuery.reload();
+      resetTaskForm();
+      setIsTaskModalOpen(false);
+    } catch (err) {
+      setError('خطا در ذخیره‌سازی: ' + (err as Error).message);
     }
-
-    await tasksQuery.reload();
-    resetTaskForm();
-    setIsTaskModalOpen(false);
   };
 
   const markDone = async (task: Task): Promise<void> => {
@@ -140,7 +209,19 @@ export function TasksPage(): JSX.Element {
                 <div className="row-between"><span className="depth-tag title-text">{categoryTitleById.get(task.categoryId) ?? 'بدون دسته'}</span></div>
               </button>
               <div className="toolbar">
-                <Button onClick={() => { setEditingTask(task); setForm({ title: task.title, description: task.description, categoryId: task.categoryId, importance: task.importance, urgency: task.urgency, benefit: task.benefit }); setError(''); setIsTaskModalOpen(true); }} variant="secondary">ویرایش</Button>
+                <Button onClick={() => { 
+                  setEditingTask(task); 
+                  setForm({ 
+                    title: task.title, 
+                    description: task.description || '', 
+                    categoryId: task.categoryId, 
+                    importance: task.importance, 
+                    urgency: task.urgency, 
+                    benefit: task.benefit 
+                  }); 
+                  setError(''); 
+                  setIsTaskModalOpen(true); 
+                }} variant="secondary">ویرایش</Button>
                 <Button variant="secondary" onClick={() => void markDone(task)}>انجام شد</Button>
                 <Button variant="danger" onClick={() => void tasksRepository.remove(task.id).then(tasksQuery.reload)}>حذف</Button>
               </div>
@@ -170,19 +251,77 @@ export function TasksPage(): JSX.Element {
         </div>
       </Card>
 
-      <Modal open={isTaskModalOpen} title={editingTask ? 'ویرایش وظیفه' : 'وظیفه جدید'} onClose={() => { setIsTaskModalOpen(false); resetTaskForm(); }} footer={<><Button onClick={() => void saveTask()}>{editingTask ? 'ذخیره تغییرات' : 'ایجاد وظیفه'}</Button><Button onClick={() => { resetTaskForm(); setIsTaskModalOpen(false); }} variant="secondary">انصراف</Button></>}>
-        <SelectField label="دسته" value={safeCategoryId} onChange={(event) => setForm((prev) => ({ ...prev, categoryId: Number(event.target.value) }))} options={categoryOptions.length ? categoryOptions : [{ value: 0, label: 'ابتدا دسته بسازید' }]} />
-        <TextField label="عنوان" value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} />
-        <RichTextField label="توضیحات" value={form.description} onChange={(value) => setForm((prev) => ({ ...prev, description: value }))} />
-        <TextField label="اهمیت (۱ تا ۵)" type="number" min={1} max={5} value={form.importance} onChange={(event) => setForm((prev) => ({ ...prev, importance: clampScore(Number(event.target.value)) }))} />
-        <TextField label="فوریت (۱ تا ۵)" type="number" min={1} max={5} value={form.urgency} onChange={(event) => setForm((prev) => ({ ...prev, urgency: clampScore(Number(event.target.value)) }))} />
-        <TextField label="منفعت (۱ تا ۵)" type="number" min={1} max={5} value={form.benefit} onChange={(event) => setForm((prev) => ({ ...prev, benefit: clampScore(Number(event.target.value)) }))} />
+      <Modal 
+        open={isTaskModalOpen} 
+        title={editingTask ? 'ویرایش وظیفه' : 'وظیفه جدید'} 
+        onClose={() => { setIsTaskModalOpen(false); resetTaskForm(); }} 
+        footer={
+          <>
+            <Button onClick={() => void saveTask()}>{editingTask ? 'ذخیره تغییرات' : 'ایجاد وظیفه'}</Button>
+            <Button onClick={() => { resetTaskForm(); setIsTaskModalOpen(false); }} variant="secondary">انصراف</Button>
+          </>
+        }
+      >
+        <SelectField 
+          label="دسته" 
+          value={form.categoryId}  // اصلاح: استفاده از form.categoryId
+          onChange={handleCategoryChange}  // اصلاح: استفاده از هندلر اختصاصی
+          options={categoryOptions.length ? categoryOptions : [{ value: 0, label: 'ابتدا دسته بسازید' }]} 
+        />
+        <TextField 
+          label="عنوان" 
+          value={form.title} 
+          onChange={handleTitleChange}  // اصلاح: استفاده از هندلر اختصاصی
+        />
+        <RichTextField 
+          label="توضیحات" 
+          value={form.description} 
+          onChange={(value) => setForm((prev) => ({ ...prev, description: value }))} 
+        />
+        <TextField 
+          label="اهمیت (۱ تا ۵)" 
+          type="number" 
+          min={1} 
+          max={5} 
+          value={form.importance} 
+          onChange={handleImportanceChange}  // اصلاح: استفاده از هندلر اختصاصی
+        />
+        <TextField 
+          label="فوریت (۱ تا ۵)" 
+          type="number" 
+          min={1} 
+          max={5} 
+          value={form.urgency} 
+          onChange={handleUrgencyChange}  // اصلاح: استفاده از هندلر اختصاصی
+        />
+        <TextField 
+          label="منفعت (۱ تا ۵)" 
+          type="number" 
+          min={1} 
+          max={5} 
+          value={form.benefit} 
+          onChange={handleBenefitChange}  // اصلاح: استفاده از هندلر اختصاصی
+        />
         <p style={{ margin: 0 }}>امتیاز اولویت: <strong>{score}</strong></p>
         {error ? <p style={{ margin: 0, color: 'var(--color-danger)' }}>{error}</p> : null}
       </Modal>
 
-      <Modal open={isCategoryModalOpen} title="مدیریت دسته‌های وظیفه" onClose={() => { setIsCategoryModalOpen(false); setCategoryTitle(''); setCategoryError(''); }} footer={<><Button type="button" onClick={() => void addCategory()}>افزودن دسته</Button><Button type="button" onClick={() => { setIsCategoryModalOpen(false); setCategoryTitle(''); setCategoryError(''); }} variant="secondary">بستن</Button></>}>
-        <TextField label="نام دسته جدید" value={categoryTitle} onChange={(event) => { setCategoryTitle(event.target.value); if (categoryError) setCategoryError(''); }} />
+      <Modal 
+        open={isCategoryModalOpen} 
+        title="مدیریت دسته‌های وظیفه" 
+        onClose={() => { setIsCategoryModalOpen(false); setCategoryTitle(''); setCategoryError(''); }} 
+        footer={
+          <>
+            <Button type="button" onClick={() => void addCategory()}>افزودن دسته</Button>
+            <Button type="button" onClick={() => { setIsCategoryModalOpen(false); setCategoryTitle(''); setCategoryError(''); }} variant="secondary">بستن</Button>
+          </>
+        }
+      >
+        <TextField 
+          label="نام دسته جدید" 
+          value={categoryTitle} 
+          onChange={(event) => { setCategoryTitle(event.target.value); if (categoryError) setCategoryError(''); }} 
+        />
         {categoryError ? <p style={{ margin: 0, color: 'var(--color-danger)' }}>{categoryError}</p> : null}
         <div className="list">
           {categories.map((category) => (
@@ -194,7 +333,11 @@ export function TasksPage(): JSX.Element {
         </div>
       </Modal>
 
-      <Modal open={isDetailsModalOpen} title={selectedTask?.title ?? 'جزئیات وظیفه'} onClose={() => { setIsDetailsModalOpen(false); setSelectedTask(null); }}>
+      <Modal 
+        open={isDetailsModalOpen} 
+        title={selectedTask?.title ?? 'جزئیات وظیفه'} 
+        onClose={() => { setIsDetailsModalOpen(false); setSelectedTask(null); }}
+      >
         <p className="detail-category">{selectedTask ? categoryTitleById.get(selectedTask.categoryId) ?? 'بدون دسته' : ''}</p>
         <div className="detail-content" dangerouslySetInnerHTML={{ __html: selectedTask?.description || '<p>بدون توضیح</p>' }} />
       </Modal>

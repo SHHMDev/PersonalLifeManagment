@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { CategoryChips } from '@/components/CategoryChips';
@@ -57,7 +57,18 @@ export function ProjectsPage(): JSX.Element {
   const categories = categoriesQuery.data ?? [];
   const projects = projectsQuery.data ?? [];
   const subjects = subjectsQuery.data ?? [];
-  const safeCategoryId = categories.some((category) => category.id === projectForm.categoryId) ? projectForm.categoryId : categories[0]?.id ?? 0;
+
+  // اصلاح: وقتی دسته‌ها لود می‌شن و دسته فعلی نامعتبره، مقدار پیش‌فرض رو set کن
+  useEffect(() => {
+    if (categories.length > 0 && projectForm.categoryId === 0) {
+      setProjectForm(prev => ({ ...prev, categoryId: categories[0].id }));
+    }
+  }, [categories, projectForm.categoryId]);
+
+  // اصلاح: فقط برای نمایش استفاده بشه
+  const safeCategoryId = projectForm.categoryId !== 0 && categories.some(c => c.id === projectForm.categoryId)
+    ? projectForm.categoryId
+    : categories[0]?.id ?? 0;
 
   const categoryOptions = useMemo(
     () =>
@@ -90,7 +101,8 @@ export function ProjectsPage(): JSX.Element {
 
   const resetProjectForm = useCallback((): void => {
     setEditingProject(null);
-    setProjectForm({ ...emptyProjectForm, categoryId: categories[0]?.id ?? 0 });
+    const defaultCategoryId = categories[0]?.id ?? 0;
+    setProjectForm({ ...emptyProjectForm, categoryId: defaultCategoryId });
     setProjectError('');
   }, [categories]);
 
@@ -134,41 +146,61 @@ export function ProjectsPage(): JSX.Element {
       setSelectedCategoryFilter(0);
     }
     if (projectForm.categoryId === categoryId) {
-      setProjectForm((prev) => ({ ...prev, categoryId: 0 }));
+      const firstCategoryId = categories.filter(c => c.id !== categoryId)[0]?.id ?? 0;
+      setProjectForm((prev) => ({ ...prev, categoryId: firstCategoryId }));
     }
     await reloadAll();
   };
 
-  const saveProject = async (): Promise<void> => {
-    const nextCategoryId = safeCategoryId;
+  // اصلاح: هندلر تغییر دسته
+  const handleCategoryChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const newCategoryId = Number(event.target.value);
+    setProjectForm(prev => ({ ...prev, categoryId: newCategoryId }));
+    if (projectError) setProjectError('');
+  };
 
+  // اصلاح: هندلر تغییر عنوان
+  const handleTitleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const newTitle = event.target.value;
+    setProjectForm(prev => ({ ...prev, title: newTitle }));
+    if (projectError && newTitle.trim()) {
+      setProjectError('');
+    }
+  };
+
+  const saveProject = async (): Promise<void> => {
+    // اصلاح: استفاده مستقیم از projectForm.categoryId
     if (!hasMeaningfulText(projectForm.title)) {
       setProjectError('عنوان الزامی است.');
       return;
     }
-    if (!nextCategoryId) {
-      setProjectError('ابتدا یک دسته‌بندی بسازید.');
+    if (!projectForm.categoryId) {
+      setProjectError('لطفاً یک دسته‌بندی انتخاب کنید.');
       return;
     }
 
-    if (editingProject) {
-      await projectsRepository.updateProject({
-        ...editingProject,
-        title: projectForm.title,
-        description: projectForm.description,
-        categoryId: nextCategoryId
-      });
-    } else {
-      await projectsRepository.createProject({
-        title: projectForm.title,
-        description: projectForm.description,
-        categoryId: nextCategoryId
-      });
-    }
+    try {
+      if (editingProject) {
+        await projectsRepository.updateProject({
+          ...editingProject,
+          title: projectForm.title.trim(),
+          description: projectForm.description,
+          categoryId: projectForm.categoryId
+        });
+      } else {
+        await projectsRepository.createProject({
+          title: projectForm.title.trim(),
+          description: projectForm.description,
+          categoryId: projectForm.categoryId
+        });
+      }
 
-    await projectsQuery.reload();
-    resetProjectForm();
-    setIsProjectModalOpen(false);
+      await projectsQuery.reload();
+      resetProjectForm();
+      setIsProjectModalOpen(false);
+    } catch (err) {
+      setProjectError('خطا در ذخیره‌سازی: ' + (err as Error).message);
+    }
   };
 
   const ensureSubjectDepth = (nextParentSubjectId: number | null, allSubjects: Subject[]): boolean => {
@@ -176,6 +208,15 @@ export function ProjectsPage(): JSX.Element {
     const map = new Map<number, { parentSubjectId: number | null }>(allSubjects.map((item) => [item.id, { parentSubjectId: item.parentSubjectId }]));
     const parentDepth = extractSubjectDepth(nextParentSubjectId, map);
     return parentDepth < 3;
+  };
+
+  // اصلاح: هندلر تغییر عنوان سرفصل
+  const handleSubjectTitleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const newTitle = event.target.value;
+    setSubjectForm(prev => ({ ...prev, title: newTitle }));
+    if (subjectError && newTitle.trim()) {
+      setSubjectError('');
+    }
   };
 
   const saveSubject = async (): Promise<void> => {
@@ -201,25 +242,29 @@ export function ProjectsPage(): JSX.Element {
       return;
     }
 
-    if (editingSubject) {
-      await projectsRepository.updateSubject({
-        ...editingSubject,
-        parentSubjectId: normalizedParent,
-        title: subjectForm.title,
-        description: subjectForm.description
-      });
-    } else {
-      await projectsRepository.createSubject({
-        projectId: selectedProjectId,
-        parentSubjectId: normalizedParent,
-        title: subjectForm.title,
-        description: subjectForm.description
-      });
-    }
+    try {
+      if (editingSubject) {
+        await projectsRepository.updateSubject({
+          ...editingSubject,
+          parentSubjectId: normalizedParent,
+          title: subjectForm.title.trim(),
+          description: subjectForm.description
+        });
+      } else {
+        await projectsRepository.createSubject({
+          projectId: selectedProjectId,
+          parentSubjectId: normalizedParent,
+          title: subjectForm.title.trim(),
+          description: subjectForm.description
+        });
+      }
 
-    resetSubjectForm();
-    await subjectsQuery.reload();
-    setIsSubjectModalOpen(false);
+      resetSubjectForm();
+      await subjectsQuery.reload();
+      setIsSubjectModalOpen(false);
+    } catch (err) {
+      setSubjectError('خطا در ذخیره‌سازی: ' + (err as Error).message);
+    }
   };
 
   return (
@@ -268,7 +313,7 @@ export function ProjectsPage(): JSX.Element {
                     setEditingProject(project);
                     setProjectForm({
                       title: project.title,
-                      description: project.description,
+                      description: project.description || '',
                       categoryId: project.categoryId
                     });
                     setProjectError('');
@@ -335,7 +380,7 @@ export function ProjectsPage(): JSX.Element {
                         setEditingSubject(subject);
                         setSubjectForm({
                           title: subject.title,
-                          description: subject.description,
+                          description: subject.description || '',
                           parentSubjectId: subject.parentSubjectId
                         });
                         setSubjectError('');
@@ -387,12 +432,20 @@ export function ProjectsPage(): JSX.Element {
       >
         <SelectField
           label="دسته"
-          value={safeCategoryId}
-          onChange={(event) => setProjectForm((prev) => ({ ...prev, categoryId: Number(event.target.value) }))}
+          value={projectForm.categoryId}  // اصلاح: استفاده از projectForm.categoryId
+          onChange={handleCategoryChange}  // اصلاح: استفاده از هندلر اختصاصی
           options={categoryOptions.length ? categoryOptions : [{ value: 0, label: 'ابتدا دسته بسازید' }]}
         />
-        <TextField label="عنوان" value={projectForm.title} onChange={(event) => setProjectForm((prev) => ({ ...prev, title: event.target.value }))} />
-        <RichTextField label="توضیحات" value={projectForm.description} onChange={(value) => setProjectForm((prev) => ({ ...prev, description: value }))} />
+        <TextField 
+          label="عنوان" 
+          value={projectForm.title} 
+          onChange={handleTitleChange}  // اصلاح: استفاده از هندلر اختصاصی
+        />
+        <RichTextField 
+          label="توضیحات" 
+          value={projectForm.description} 
+          onChange={(value) => setProjectForm((prev) => ({ ...prev, description: value }))} 
+        />
         {projectError ? <p style={{ margin: 0, color: 'var(--color-danger)' }}>{projectError}</p> : null}
       </Modal>
 
@@ -456,8 +509,16 @@ export function ProjectsPage(): JSX.Element {
           </>
         }
       >
-        <TextField label="عنوان سرفصل" value={subjectForm.title} onChange={(event) => setSubjectForm((prev) => ({ ...prev, title: event.target.value }))} />
-        <RichTextField label="توضیحات سرفصل" value={subjectForm.description} onChange={(value) => setSubjectForm((prev) => ({ ...prev, description: value }))} />
+        <TextField 
+          label="عنوان سرفصل" 
+          value={subjectForm.title} 
+          onChange={handleSubjectTitleChange}  // اصلاح: استفاده از هندلر اختصاصی
+        />
+        <RichTextField 
+          label="توضیحات سرفصل" 
+          value={subjectForm.description} 
+          onChange={(value) => setSubjectForm((prev) => ({ ...prev, description: value }))} 
+        />
         <SelectField
           label="والد سرفصل"
           value={subjectForm.parentSubjectId ?? 0}

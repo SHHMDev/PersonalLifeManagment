@@ -9,11 +9,11 @@ type NavItem = {
 
 const iconProps = {
   fill: 'none',
-  height: 22,
+  height: 25,
   stroke: 'currentColor',
   strokeLinecap: 'round' as const,
   strokeLinejoin: 'round' as const,
-  strokeWidth: 1.8,
+  strokeWidth: 1.9,
   viewBox: '0 0 24 24',
   width: 22
 };

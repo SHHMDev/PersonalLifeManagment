@@ -1,11 +1,11 @@
-import { PropsWithChildren, useEffect } from 'react';
+import { PropsWithChildren, useEffect, ReactNode } from 'react';
 import { Button } from '@/components/Button';
 
 type ModalProps = PropsWithChildren<{
   open: boolean;
   title: string;
   onClose: () => void;
-  footer?: JSX.Element | null;
+  footer?: ReactNode;
 }>;
 
 export function Modal({ open, title, onClose, footer = null, children }: ModalProps): JSX.Element | null {

@@ -232,3 +232,40 @@ Stabilized core CRUD flows and aligned the UI closer to the original usage visio
 ### Notes
 
 The build initially failed on a TypeScript 6 deprecation error for `baseUrl`; this was fixed with the smallest possible compiler config change so functional verification could continue.
+
+## 2026-06-10 11:05
+
+### Task
+
+Fixed the reported CRUD and UI regressions across Goals, Tasks, Recurring, Projects, and Daily Logs: prevented unintended button submit behavior in modals, preserved user-entered category/title text without trimming on save, improved RTL rich text editor behavior for Persian input, expanded Projects with subject edit + read detail flows, and refreshed bottom navigation with cleaner local SVG icons.
+
+### Files Changed
+
+- DEV_LOG.md
+- src/components/Button.tsx
+- src/components/RichTextField.tsx
+- src/components/BottomNav.tsx
+- src/db/repositories/commonRepository.ts
+- src/db/repositories/projectsRepository.ts
+- src/design/global.css
+- src/features/goals/GoalsPage.tsx
+- src/features/tasks/TasksPage.tsx
+- src/features/recurring/RecurringTasksPage.tsx
+- src/features/projects/ProjectsPage.tsx
+- src/utils.ts
+
+### Decisions
+
+- Set shared buttons to default to `type="button"` so modal actions do not accidentally behave like form submits.
+- Preserved raw user-entered titles and category names on save to match the requested “no trim/no edit” behavior.
+- Kept rich text editing shared through one RTL-first component so Persian fixes apply consistently across all description fields.
+- Completed missing Project/Subject read-update flows without changing the broader architecture or database shape.
+
+### TODO
+
+- Run the production build and manually verify Persian text entry inside the Quill editor on the target Android runtime.
+- If notification edit/delete cleanup still feels inconsistent on-device, add an explicit cancellation path in a later pass.
+
+### Notes
+
+The category-save issue appeared rooted in shared button behavior; fixing it centrally avoids repeating ad hoc guards across feature modals.

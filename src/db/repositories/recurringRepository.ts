@@ -12,31 +12,13 @@ export const recurringRepository = {
   async create(payload: Omit<RecurringTask, 'id' | 'lastCompletedAt'>): Promise<void> {
     await sqliteService.run(
       'INSERT INTO recurring_tasks(categoryId, title, description, frequencyType, timeOfDay, lastCompletedAt, nextDueAt, notificationsEnabled) VALUES (?, ?, ?, ?, ?, NULL, ?, ?)',
-      [
-        payload.categoryId,
-        payload.title.trim(),
-        payload.description.trim(),
-        payload.frequencyType,
-        payload.timeOfDay,
-        payload.nextDueAt,
-        payload.notificationsEnabled
-      ]
+      [payload.categoryId, payload.title, payload.description, payload.frequencyType, payload.timeOfDay, payload.nextDueAt, payload.notificationsEnabled]
     );
   },
   async update(item: RecurringTask): Promise<void> {
     await sqliteService.run(
       'UPDATE recurring_tasks SET categoryId = ?, title = ?, description = ?, frequencyType = ?, timeOfDay = ?, lastCompletedAt = ?, nextDueAt = ?, notificationsEnabled = ? WHERE id = ?',
-      [
-        item.categoryId,
-        item.title.trim(),
-        item.description.trim(),
-        item.frequencyType,
-        item.timeOfDay,
-        item.lastCompletedAt,
-        item.nextDueAt,
-        item.notificationsEnabled,
-        item.id
-      ]
+      [item.categoryId, item.title, item.description, item.frequencyType, item.timeOfDay, item.lastCompletedAt, item.nextDueAt, item.notificationsEnabled, item.id]
     );
   },
   async remove(id: number): Promise<void> {

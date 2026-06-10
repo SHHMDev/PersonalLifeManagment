@@ -16,7 +16,7 @@ export async function listCategories(table: string): Promise<BaseCategory[]> {
 
 export async function createCategory(table: string, title: string): Promise<number> {
   assertAllowedTable(table);
-  return sqliteService.run(`INSERT INTO ${table}(title) VALUES (?)`, [title.trim()]);
+  return sqliteService.run(`INSERT INTO ${table}(title) VALUES (?)`, [title]);
 }
 
 export async function deleteCategory(table: string, id: number): Promise<void> {

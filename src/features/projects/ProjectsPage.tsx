@@ -7,13 +7,13 @@ import { Modal } from '@/components/Modal';
 import { PageHeader } from '@/components/PageHeader';
 import { SearchBar } from '@/components/SearchBar';
 import { SelectField } from '@/components/SelectField';
-import { TextAreaField } from '@/components/TextAreaField';
+import { RichTextField } from '@/components/RichTextField';
 import { TextField } from '@/components/TextField';
 import { createCategory, deleteCategory, listCategories } from '@/db/repositories/commonRepository';
 import { projectsRepository } from '@/db/repositories/projectsRepository';
 import { useAsyncData, useFloatingAction } from '@/hooks';
 import { Project, Subject } from '@/types';
-import { extractSubjectDepth, normalizePersianText } from '@/utils';
+import { extractSubjectDepth, hasMeaningfulText } from '@/utils';
 
 type ProjectForm = {
   title: string;
@@ -34,6 +34,9 @@ export function ProjectsPage(): JSX.Element {
   const [search, setSearch] = useState('');
   const [categoryTitle, setCategoryTitle] = useState('');
   const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [projectForm, setProjectForm] = useState<ProjectForm>(emptyProjectForm);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [subjectForm, setSubjectForm] = useState<SubjectForm>(emptySubjectForm);
@@ -44,6 +47,8 @@ export function ProjectsPage(): JSX.Element {
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isSubjectModalOpen, setIsSubjectModalOpen] = useState(false);
+  const [isProjectDetailsModalOpen, setIsProjectDetailsModalOpen] = useState(false);
+  const [isSubjectDetailsModalOpen, setIsSubjectDetailsModalOpen] = useState(false);
 
   const categoriesQuery = useAsyncData(() => listCategories('project_categories'), []);
   const projectsQuery = useAsyncData(() => projectsRepository.listProjects(search), [search]);
@@ -78,6 +83,11 @@ export function ProjectsPage(): JSX.Element {
     [projects, selectedCategoryFilter]
   );
 
+  const subjectDepthMap = useMemo(
+    () => new Map<number, { parentSubjectId: number | null }>(subjects.map((item) => [item.id, { parentSubjectId: item.parentSubjectId }])),
+    [subjects]
+  );
+
   const resetProjectForm = useCallback((): void => {
     setEditingProject(null);
     setProjectForm({ ...emptyProjectForm, categoryId: categories[0]?.id ?? 0 });
@@ -85,6 +95,7 @@ export function ProjectsPage(): JSX.Element {
   }, [categories]);
 
   const resetSubjectForm = (): void => {
+    setEditingSubject(null);
     setSubjectForm(emptySubjectForm);
     setSubjectError('');
   };
@@ -106,13 +117,12 @@ export function ProjectsPage(): JSX.Element {
   };
 
   const addCategory = async (): Promise<void> => {
-    const normalizedTitle = normalizePersianText(categoryTitle);
-    if (!normalizedTitle) {
+    if (!hasMeaningfulText(categoryTitle)) {
       setCategoryError('نام دسته الزامی است.');
       return;
     }
 
-    await createCategory('project_categories', normalizedTitle);
+    await createCategory('project_categories', categoryTitle);
     setCategoryTitle('');
     setCategoryError('');
     await reloadAll();
@@ -130,11 +140,9 @@ export function ProjectsPage(): JSX.Element {
   };
 
   const saveProject = async (): Promise<void> => {
-    const normalizedTitle = normalizePersianText(projectForm.title);
-    const normalizedDescription = normalizePersianText(projectForm.description);
     const nextCategoryId = safeCategoryId;
 
-    if (!normalizedTitle) {
+    if (!hasMeaningfulText(projectForm.title)) {
       setProjectError('عنوان الزامی است.');
       return;
     }
@@ -146,14 +154,14 @@ export function ProjectsPage(): JSX.Element {
     if (editingProject) {
       await projectsRepository.updateProject({
         ...editingProject,
-        title: normalizedTitle,
-        description: normalizedDescription,
+        title: projectForm.title,
+        description: projectForm.description,
         categoryId: nextCategoryId
       });
     } else {
       await projectsRepository.createProject({
-        title: normalizedTitle,
-        description: normalizedDescription,
+        title: projectForm.title,
+        description: projectForm.description,
         categoryId: nextCategoryId
       });
     }
@@ -172,31 +180,42 @@ export function ProjectsPage(): JSX.Element {
 
   const saveSubject = async (): Promise<void> => {
     setSubjectError('');
-    const normalizedTitle = normalizePersianText(subjectForm.title);
-    const normalizedDescription = normalizePersianText(subjectForm.description);
-
     if (!selectedProjectId) {
       setSubjectError('ابتدا یک پروژه را انتخاب کنید.');
       return;
     }
-    if (!normalizedTitle) {
+    if (!hasMeaningfulText(subjectForm.title)) {
       setSubjectError('عنوان سرفصل الزامی است.');
       return;
     }
 
     const normalizedParent = subjectForm.parentSubjectId && subjectForm.parentSubjectId > 0 ? subjectForm.parentSubjectId : null;
 
+    if (editingSubject && normalizedParent === editingSubject.id) {
+      setSubjectError('سرفصل نمی‌تواند والد خودش باشد.');
+      return;
+    }
+
     if (!ensureSubjectDepth(normalizedParent, subjects)) {
       setSubjectError('امکان افزودن بیشتر نیست. عمق سرفصل حداکثر سه سطح است.');
       return;
     }
 
-    await projectsRepository.createSubject({
-      projectId: selectedProjectId,
-      parentSubjectId: normalizedParent,
-      title: normalizedTitle,
-      description: normalizedDescription
-    });
+    if (editingSubject) {
+      await projectsRepository.updateSubject({
+        ...editingSubject,
+        parentSubjectId: normalizedParent,
+        title: subjectForm.title,
+        description: subjectForm.description
+      });
+    } else {
+      await projectsRepository.createSubject({
+        projectId: selectedProjectId,
+        parentSubjectId: normalizedParent,
+        title: subjectForm.title,
+        description: subjectForm.description
+      });
+    }
 
     resetSubjectForm();
     await subjectsQuery.reload();
@@ -230,11 +249,19 @@ export function ProjectsPage(): JSX.Element {
         <div className="list">
           {filteredProjects.map((project) => (
             <div className="list-item" key={project.id}>
-              <div className="row-between">
-                <strong>{project.title}</strong>
-                <span className="badge">{categoryTitleById.get(project.categoryId) ?? 'بدون دسته'}</span>
-              </div>
-              <p className="content-preview">{project.description || 'بدون توضیح'}</p>
+              <button
+                className="board-button"
+                onClick={() => {
+                  setSelectedProject(project);
+                  setIsProjectDetailsModalOpen(true);
+                }}
+                type="button"
+              >
+                <div className="row-between">
+                  <strong className="title-text">{project.title}</strong>
+                  <span className="badge title-badge">{categoryTitleById.get(project.categoryId) ?? 'بدون دسته'}</span>
+                </div>
+              </button>
               <div className="toolbar">
                 <Button
                   onClick={() => {
@@ -285,17 +312,39 @@ export function ProjectsPage(): JSX.Element {
 
           <div className="list">
             {subjects.map((subject) => {
-              const map = new Map<number, { parentSubjectId: number | null }>(subjects.map((item) => [item.id, { parentSubjectId: item.parentSubjectId }]));
-              const depth = extractSubjectDepth(subject.id, map);
+              const depth = extractSubjectDepth(subject.id, subjectDepthMap);
 
               return (
                 <div className="list-item" key={subject.id} style={{ marginInlineStart: `${(depth - 1) * 12}px` }}>
-                  <div className="row-between">
-                    <strong>{subject.title}</strong>
-                    <span className="depth-tag">سطح {depth}</span>
-                  </div>
-                  <p className="content-preview">{subject.description || 'بدون توضیح'}</p>
+                  <button
+                    className="board-button"
+                    onClick={() => {
+                      setSelectedSubject(subject);
+                      setIsSubjectDetailsModalOpen(true);
+                    }}
+                    type="button"
+                  >
+                    <div className="row-between">
+                      <strong className="title-text">{subject.title}</strong>
+                      <span className="depth-tag">سطح {depth}</span>
+                    </div>
+                  </button>
                   <div className="toolbar">
+                    <Button
+                      onClick={() => {
+                        setEditingSubject(subject);
+                        setSubjectForm({
+                          title: subject.title,
+                          description: subject.description,
+                          parentSubjectId: subject.parentSubjectId
+                        });
+                        setSubjectError('');
+                        setIsSubjectModalOpen(true);
+                      }}
+                      variant="secondary"
+                    >
+                      ویرایش
+                    </Button>
                     <Button
                       variant="secondary"
                       onClick={() => void projectsRepository.updateSubject({ ...subject, isDone: subject.isDone ? 0 : 1 }).then(subjectsQuery.reload)}
@@ -343,11 +392,7 @@ export function ProjectsPage(): JSX.Element {
           options={categoryOptions.length ? categoryOptions : [{ value: 0, label: 'ابتدا دسته بسازید' }]}
         />
         <TextField label="عنوان" value={projectForm.title} onChange={(event) => setProjectForm((prev) => ({ ...prev, title: event.target.value }))} />
-        <TextAreaField
-          label="توضیحات"
-          value={projectForm.description}
-          onChange={(event) => setProjectForm((prev) => ({ ...prev, description: event.target.value }))}
-        />
+        <RichTextField label="توضیحات" value={projectForm.description} onChange={(value) => setProjectForm((prev) => ({ ...prev, description: value }))} />
         {projectError ? <p style={{ margin: 0, color: 'var(--color-danger)' }}>{projectError}</p> : null}
       </Modal>
 
@@ -375,12 +420,12 @@ export function ProjectsPage(): JSX.Element {
           </>
         }
       >
-        <TextField label="نام دسته جدید" value={categoryTitle} onChange={(event) => setCategoryTitle(event.target.value)} />
+        <TextField label="نام دسته جدید" value={categoryTitle} onChange={(event) => { setCategoryTitle(event.target.value); if (categoryError) setCategoryError(''); }} />
         {categoryError ? <p style={{ margin: 0, color: 'var(--color-danger)' }}>{categoryError}</p> : null}
         <div className="list">
           {categories.map((category) => (
             <div className="list-item row-between" key={category.id}>
-              <span>{category.title}</span>
+              <span className="title-text">{category.title}</span>
               <Button variant="danger" onClick={() => void removeCategory(category.id)}>
                 حذف
               </Button>
@@ -391,14 +436,14 @@ export function ProjectsPage(): JSX.Element {
 
       <Modal
         open={isSubjectModalOpen}
-        title="سرفصل جدید"
+        title={editingSubject ? 'ویرایش سرفصل' : 'سرفصل جدید'}
         onClose={() => {
           setIsSubjectModalOpen(false);
           resetSubjectForm();
         }}
         footer={
           <>
-            <Button onClick={() => void saveSubject()}>افزودن سرفصل</Button>
+            <Button onClick={() => void saveSubject()}>{editingSubject ? 'ذخیره تغییرات' : 'افزودن سرفصل'}</Button>
             <Button
               onClick={() => {
                 setIsSubjectModalOpen(false);
@@ -412,11 +457,7 @@ export function ProjectsPage(): JSX.Element {
         }
       >
         <TextField label="عنوان سرفصل" value={subjectForm.title} onChange={(event) => setSubjectForm((prev) => ({ ...prev, title: event.target.value }))} />
-        <TextAreaField
-          label="توضیحات سرفصل"
-          value={subjectForm.description}
-          onChange={(event) => setSubjectForm((prev) => ({ ...prev, description: event.target.value }))}
-        />
+        <RichTextField label="توضیحات سرفصل" value={subjectForm.description} onChange={(value) => setSubjectForm((prev) => ({ ...prev, description: value }))} />
         <SelectField
           label="والد سرفصل"
           value={subjectForm.parentSubjectId ?? 0}
@@ -424,6 +465,34 @@ export function ProjectsPage(): JSX.Element {
           options={subjectOptions}
         />
         {subjectError ? <p style={{ margin: 0, color: 'var(--color-danger)' }}>{subjectError}</p> : null}
+      </Modal>
+
+      <Modal
+        open={isProjectDetailsModalOpen}
+        title={selectedProject?.title ?? 'جزئیات پروژه'}
+        onClose={() => {
+          setIsProjectDetailsModalOpen(false);
+          setSelectedProject(null);
+        }}
+      >
+        <div className="detail-card">
+          <p className="detail-category">{selectedProject ? categoryTitleById.get(selectedProject.categoryId) ?? 'بدون دسته' : ''}</p>
+          <div className="detail-content" dangerouslySetInnerHTML={{ __html: selectedProject?.description || '<p>بدون توضیح</p>' }} />
+        </div>
+      </Modal>
+
+      <Modal
+        open={isSubjectDetailsModalOpen}
+        title={selectedSubject?.title ?? 'جزئیات سرفصل'}
+        onClose={() => {
+          setIsSubjectDetailsModalOpen(false);
+          setSelectedSubject(null);
+        }}
+      >
+        <div className="detail-card">
+          <p className="detail-category">{selectedSubject ? `سطح ${extractSubjectDepth(selectedSubject.id, subjectDepthMap)}` : ''}</p>
+          <div className="detail-content" dangerouslySetInnerHTML={{ __html: selectedSubject?.description || '<p>بدون توضیح</p>' }} />
+        </div>
       </Modal>
     </main>
   );

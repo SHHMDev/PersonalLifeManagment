@@ -10,16 +10,18 @@ export const goalsRepository = {
     );
   },
   async create(payload: Omit<Goal, 'id'>): Promise<void> {
-    await sqliteService.run(
-      'INSERT INTO goals(categoryId, title, description, createdAt) VALUES (?, ?, ?, ?)',
-      [payload.categoryId, payload.title.trim(), payload.description.trim(), payload.createdAt]
-    );
+    await sqliteService.run('INSERT INTO goals(categoryId, title, description, createdAt) VALUES (?, ?, ?, ?)', [
+      payload.categoryId,
+      payload.title,
+      payload.description,
+      payload.createdAt
+    ]);
   },
   async update(goal: Goal): Promise<void> {
     await sqliteService.run('UPDATE goals SET categoryId = ?, title = ?, description = ? WHERE id = ?', [
       goal.categoryId,
-      goal.title.trim(),
-      goal.description.trim(),
+      goal.title,
+      goal.description,
       goal.id
     ]);
   },

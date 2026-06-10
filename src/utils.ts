@@ -3,7 +3,11 @@ export function nowIso(): string {
 }
 
 export function normalizePersianText(input: string): string {
-  return input.replace(/ي/g, 'ی').replace(/ك/g, 'ک').replace(/\u200c+/g, '\u200c').replace(/\s+/g, ' ').trim();
+  return input.replace(/ي/g, 'ی').replace(/ك/g, 'ک').replace(/\u200c+/g, '\u200c');
+}
+
+export function hasMeaningfulText(input: string): boolean {
+  return input.trim().length > 0;
 }
 
 export function toPersianDigits(input: string | number): string {
@@ -43,9 +47,13 @@ export function extractSubjectDepth(subjectId: number, subjectById: Map<number, 
 }
 
 export function isValidPersianText(value: string): boolean {
-  return normalizePersianText(value).length > 0;
+  return hasMeaningfulText(value);
 }
 
 export function stripHtml(value: string): string {
   return value.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+export function hasMeaningfulRichText(value: string): boolean {
+  return stripHtml(value).length > 0;
 }

@@ -53,6 +53,8 @@ select {
   border-radius: var(--radius-sm);
   padding: 10px 12px;
   background: #fff;
+  direction: rtl;
+  text-align: right;
 }
 
 textarea {
@@ -128,6 +130,10 @@ textarea {
   gap: 8px;
 }
 
+.row-between > * {
+  min-width: 0;
+}
+
 .list {
   display: grid;
   gap: 8px;
@@ -147,6 +153,7 @@ textarea {
   padding: 2px 8px;
   font-size: 0.78rem;
   font-weight: 700;
+  flex-shrink: 0;
 }
 
 .btn {
@@ -265,4 +272,75 @@ textarea {
 
 .ql-toolbar {
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
+.board-button {
+  border: none;
+  background: transparent;
+  padding: 0;
+  width: 100%;
+  text-align: right;
+  cursor: pointer;
+  color: inherit;
+  display: grid;
+  gap: 8px;
+}
+
+.title-text {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  word-break: break-word;
+  line-height: 1.8;
+  font-size: 1rem;
+  min-width: 0;
+}
+
+.title-badge {
+  max-width: min(60%, 220px);
+  white-space: normal;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.detail-category {
+  margin: 0 0 8px;
+  color: var(--color-text-secondary);
+}
+
+.detail-content {
+  line-height: 1.9;
+  direction: rtl;
+  text-align: right;
+}
+
+.rich-text-field .ql-container,
+.rich-text-field .ql-editor,
+.rich-text-field .ql-toolbar {
+  direction: rtl;
+  text-align: right;
+}
+
+.rich-text-field .ql-editor {
+  min-height: 180px;
+  font-family: 'Vazirmatn', 'Tahoma', sans-serif;
+  line-height: 1.9;
+  white-space: pre-wrap;
+}
+
+.rich-text-field .ql-editor p,
+.rich-text-field .ql-editor li {
+  text-align: right;
+}
+
+.rich-text-field .ql-editor.ql-blank::before {
+  right: 15px;
+  left: auto;
+  color: var(--color-text-secondary);
+  font-style: normal;
+}
+
+.detail-card {
+  display: grid;
+  gap: 10px;
 }

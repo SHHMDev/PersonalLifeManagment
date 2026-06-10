@@ -10,19 +10,10 @@ export const projectsRepository = {
     );
   },
   async createProject(payload: Omit<Project, 'id'>): Promise<void> {
-    await sqliteService.run('INSERT INTO projects(categoryId, title, description) VALUES (?, ?, ?)', [
-      payload.categoryId,
-      payload.title.trim(),
-      payload.description.trim()
-    ]);
+    await sqliteService.run('INSERT INTO projects(categoryId, title, description) VALUES (?, ?, ?)', [payload.categoryId, payload.title, payload.description]);
   },
   async updateProject(payload: Project): Promise<void> {
-    await sqliteService.run('UPDATE projects SET categoryId = ?, title = ?, description = ? WHERE id = ?', [
-      payload.categoryId,
-      payload.title.trim(),
-      payload.description.trim(),
-      payload.id
-    ]);
+    await sqliteService.run('UPDATE projects SET categoryId = ?, title = ?, description = ? WHERE id = ?', [payload.categoryId, payload.title, payload.description, payload.id]);
   },
   async removeProject(id: number): Promise<void> {
     await sqliteService.run('DELETE FROM projects WHERE id = ?', [id]);
@@ -34,15 +25,18 @@ export const projectsRepository = {
     );
   },
   async createSubject(payload: Omit<Subject, 'id' | 'isDone'>): Promise<void> {
-    await sqliteService.run(
-      'INSERT INTO subjects(projectId, parentSubjectId, title, description, isDone) VALUES (?, ?, ?, ?, 0)',
-      [payload.projectId, payload.parentSubjectId, payload.title.trim(), payload.description.trim()]
-    );
+    await sqliteService.run('INSERT INTO subjects(projectId, parentSubjectId, title, description, isDone) VALUES (?, ?, ?, ?, 0)', [
+      payload.projectId,
+      payload.parentSubjectId,
+      payload.title,
+      payload.description
+    ]);
   },
   async updateSubject(payload: Subject): Promise<void> {
-    await sqliteService.run('UPDATE subjects SET title = ?, description = ?, isDone = ? WHERE id = ?', [
-      payload.title.trim(),
-      payload.description.trim(),
+    await sqliteService.run('UPDATE subjects SET parentSubjectId = ?, title = ?, description = ?, isDone = ? WHERE id = ?', [
+      payload.parentSubjectId,
+      payload.title,
+      payload.description,
       payload.isDone,
       payload.id
     ]);

@@ -85,10 +85,10 @@ export function RecurringTasksPage(): JSX.Element {
   };
 
   const addCategory = async (): Promise<void> => {
-    if (!hasMeaningfulText(categoryTitle)) {
-      setCategoryError('نام دسته الزامی است.');
-      return;
-    }
+    // if (!hasMeaningfulText(categoryTitle)) {
+    //   setCategoryError('نام دسته الزامی است.');
+    //   return;
+    // }
 
     await createCategory('recurring_task_categories', categoryTitle);
     setCategoryTitle('');
@@ -147,10 +147,10 @@ export function RecurringTasksPage(): JSX.Element {
 
   const saveItem = async (): Promise<void> => {
     // اصلاح: استفاده مستقیم از form.categoryId
-    if (!hasMeaningfulText(form.title)) {
-      setError('عنوان الزامی است.');
-      return;
-    }
+    // if (!hasMeaningfulText(form.title)) {
+    //   setError('عنوان الزامی است.');
+    //   return;
+    // }
     if (!form.categoryId) {
       setError('لطفاً یک دسته‌بندی انتخاب کنید.');
       return;
@@ -175,7 +175,7 @@ export function RecurringTasksPage(): JSX.Element {
       } else {
         await recurringRepository.create({ 
           categoryId: form.categoryId,  // اصلاح: استفاده از form.categoryId
-          title: form.title.trim(),
+          title: form.title,
           description: form.description, 
           frequencyType: form.frequencyType, 
           timeOfDay: form.timeOfDay, 
@@ -183,7 +183,7 @@ export function RecurringTasksPage(): JSX.Element {
           notificationsEnabled: form.notificationsEnabled ? 1 : 0 
         });
         const reloaded = await recurringRepository.list(search);
-        const createdItem = reloaded.find((item) => item.title === form.title.trim() && item.nextDueAt === nextDueAt) ?? reloaded[0];
+        const createdItem = reloaded.find((item) => item.title === form.title && item.nextDueAt === nextDueAt) ?? reloaded[0];
         if (createdItem) await scheduleForItem(createdItem);
       }
 

@@ -129,10 +129,10 @@ export function ProjectsPage(): JSX.Element {
   };
 
   const addCategory = async (): Promise<void> => {
-    if (!hasMeaningfulText(categoryTitle)) {
-      setCategoryError('نام دسته الزامی است.');
-      return;
-    }
+    // if (!hasMeaningfulText(categoryTitle)) {
+    //   setCategoryError('نام دسته الزامی است.');
+    //   return;
+    // }
 
     await createCategory('project_categories', categoryTitle);
     setCategoryTitle('');
@@ -169,11 +169,10 @@ export function ProjectsPage(): JSX.Element {
   };
 
   const saveProject = async (): Promise<void> => {
-    // اصلاح: استفاده مستقیم از projectForm.categoryId
-    if (!hasMeaningfulText(projectForm.title)) {
-      setProjectError('عنوان الزامی است.');
-      return;
-    }
+    // if (!hasMeaningfulText(projectForm.title)) {
+    //   setProjectError('عنوان الزامی است.');
+    //   return;
+    // }
     if (!projectForm.categoryId) {
       setProjectError('لطفاً یک دسته‌بندی انتخاب کنید.');
       return;
@@ -183,13 +182,13 @@ export function ProjectsPage(): JSX.Element {
       if (editingProject) {
         await projectsRepository.updateProject({
           ...editingProject,
-          title: projectForm.title.trim(),
+          title: projectForm.title,
           description: projectForm.description,
           categoryId: projectForm.categoryId
         });
       } else {
         await projectsRepository.createProject({
-          title: projectForm.title.trim(),
+          title: projectForm.title,
           description: projectForm.description,
           categoryId: projectForm.categoryId
         });
@@ -225,10 +224,10 @@ export function ProjectsPage(): JSX.Element {
       setSubjectError('ابتدا یک پروژه را انتخاب کنید.');
       return;
     }
-    if (!hasMeaningfulText(subjectForm.title)) {
-      setSubjectError('عنوان سرفصل الزامی است.');
-      return;
-    }
+    // if (!hasMeaningfulText(subjectForm.title)) {
+    //   setSubjectError('عنوان سرفصل الزامی است.');
+    //   return;
+    // }
 
     const normalizedParent = subjectForm.parentSubjectId && subjectForm.parentSubjectId > 0 ? subjectForm.parentSubjectId : null;
 

@@ -37,13 +37,16 @@ export function DailyLogsPage(): JSX.Element {
   useFloatingAction('/daily-logs', useCallback(() => { resetForm(); setIsLogModalOpen(true); }, [resetForm]));
 
   const saveLog = async (): Promise<void> => {
-    if (!hasMeaningfulText(title)) {
-      setError('عنوان الزامی است.');
-      return;
-    }
+    // if (!hasMeaningfulText(title)) {
+    //   setError('عنوان الزامی است.');
+    //   return;
+    // }
 
-    const normalizedTitle = normalizePersianText(title);
-    const normalizedContent = normalizePersianText(content);
+    // const normalizedTitle = normalizePersianText(title);
+    // const normalizedContent = normalizePersianText(content);
+
+    const normalizedTitle = title;
+    const normalizedContent = content;
 
     if (editingLog) {
       await dailyLogsRepository.update({ ...editingLog, title: normalizedTitle, logDate, content: normalizedContent });

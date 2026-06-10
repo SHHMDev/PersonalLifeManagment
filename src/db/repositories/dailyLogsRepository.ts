@@ -11,7 +11,7 @@ export const dailyLogsRepository = {
   },
   async create(payload: Omit<DailyLog, 'id'>): Promise<void> {
     await sqliteService.run('INSERT INTO daily_logs(title, logDate, content, createdAt) VALUES (?, ?, ?, ?)', [
-      payload.title.trim(),
+      payload.title,
       payload.logDate,
       payload.content,
       payload.createdAt
@@ -19,7 +19,7 @@ export const dailyLogsRepository = {
   },
   async update(payload: DailyLog): Promise<void> {
     await sqliteService.run('UPDATE daily_logs SET title = ?, logDate = ?, content = ? WHERE id = ?', [
-      payload.title.trim(),
+      payload.title,
       payload.logDate,
       payload.content,
       payload.id

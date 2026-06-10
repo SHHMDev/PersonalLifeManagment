@@ -7,7 +7,7 @@ export function normalizePersianText(input: string): string {
 }
 
 export function hasMeaningfulText(input: string): boolean {
-  return input.trim().length > 0;
+  return input.length > 0;
 }
 
 export function toPersianDigits(input: string | number): string {

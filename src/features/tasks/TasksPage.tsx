@@ -80,10 +80,10 @@ export function TasksPage(): JSX.Element {
   };
 
   const addCategory = async (): Promise<void> => {
-    if (!hasMeaningfulText(categoryTitle)) {
-      setCategoryError('نام دسته الزامی است.');
-      return;
-    }
+    // if (!hasMeaningfulText(categoryTitle)) {
+    //   setCategoryError('نام دسته الزامی است.');
+    //   return;
+    // }
 
     await createCategory('task_categories', categoryTitle);
     setCategoryTitle('');
@@ -134,10 +134,10 @@ export function TasksPage(): JSX.Element {
 
   const saveTask = async (): Promise<void> => {
     // اصلاح: استفاده مستقیم از form.categoryId
-    if (!hasMeaningfulText(form.title)) {
-      setError('عنوان الزامی است.');
-      return;
-    }
+    // if (!hasMeaningfulText(form.title)) {
+    //   setError('عنوان الزامی است.');
+    //   return;
+    // }
     if (!form.categoryId) {
       setError('لطفاً یک دسته‌بندی انتخاب کنید.');
       return;
@@ -149,7 +149,7 @@ export function TasksPage(): JSX.Element {
       if (editingTask) {
         await tasksRepository.update({ 
           ...editingTask, 
-          title: form.title.trim(),
+          title: form.title,
           description: form.description, 
           categoryId: form.categoryId,  // اصلاح: استفاده از form.categoryId
           importance: form.importance, 
@@ -159,9 +159,9 @@ export function TasksPage(): JSX.Element {
         });
       } else {
         await tasksRepository.create({ 
-          title: form.title.trim(),
+          title: form.title,
           description: form.description, 
-          categoryId: form.categoryId,  // اصلاح: استفاده از form.categoryId
+          categoryId: form.categoryId,  
           importance: form.importance, 
           urgency: form.urgency, 
           benefit: form.benefit, 

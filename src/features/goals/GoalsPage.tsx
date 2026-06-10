@@ -85,10 +85,10 @@ export function GoalsPage(): JSX.Element {
   };
 
   const addCategory = async (): Promise<void> => {
-    if (!hasMeaningfulText(categoryTitle)) {
-      setCategoryError('نام دسته الزامی است.');
-      return;
-    }
+    // if (!hasMeaningfulText(categoryTitle)) {
+    //   setCategoryError('نام دسته الزامی است.');
+    //   return;
+    // }
 
     await createCategory('goal_categories', categoryTitle);
     setCategoryTitle('');
@@ -109,10 +109,10 @@ export function GoalsPage(): JSX.Element {
   };
 
   const saveGoal = async (): Promise<void> => {
-    if (!hasMeaningfulText(form.title)) {
-      setError('عنوان الزامی است.');
-      return;
-    }
+    // if (!hasMeaningfulText(form.title)) {
+    //   setError('عنوان الزامی است.');
+    //   return;
+    // }
     if (!form.categoryId) {
       setError('ابتدا یک دسته‌بندی بسازید.');
       return;

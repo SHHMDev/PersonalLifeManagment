@@ -28,6 +28,8 @@ class SqliteService {
 
     await this.db.open();
 
+    await this.db.execute('PRAGMA foreign_keys = ON;');
+
     if (!this.initialized) {
       await this.runMigrations(this.db);
       this.initialized = true;

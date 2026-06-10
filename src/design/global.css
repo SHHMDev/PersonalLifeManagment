@@ -28,7 +28,7 @@ body,
 #root {
   margin: 0;
   min-height: 100%;
-  font-family: "Vazirmatn", "Tahoma", sans-serif;
+  font-family: 'Vazirmatn', 'Tahoma', sans-serif;
   direction: rtl;
   background: var(--color-background);
   color: var(--color-text-primary);
@@ -181,6 +181,81 @@ textarea {
 .depth-tag {
   color: var(--color-text-secondary);
   font-size: 0.78rem;
+}
+
+.chips-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-full);
+  padding: 8px 12px;
+  background: #fff;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.chip-active {
+  background: #eaf2ff;
+  border-color: #cfe0ff;
+  color: var(--color-primary-dark);
+  font-weight: 700;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(19, 32, 58, 0.4);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px;
+  z-index: 40;
+}
+
+.modal-sheet {
+  width: min(100%, 720px);
+  max-height: 88vh;
+  overflow: auto;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-medium);
+  border: 1px solid var(--color-divider);
+  padding: 14px;
+}
+
+.modal-header,
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.modal-body {
+  display: grid;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.content-preview {
+  margin: 6px 0 0;
+  color: var(--color-text-primary);
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .ql-container {

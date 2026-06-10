@@ -2,6 +2,10 @@ export function nowIso(): string {
   return new Date().toISOString();
 }
 
+export function normalizePersianText(input: string): string {
+  return input.replace(/ي/g, 'ی').replace(/ك/g, 'ک').replace(/\u200c+/g, '\u200c').replace(/\s+/g, ' ').trim();
+}
+
 export function toPersianDigits(input: string | number): string {
   return String(input).replace(/[0-9]/g, (digit) => '۰۱۲۳۴۵۶۷۸۹'[Number(digit)]);
 }
@@ -39,5 +43,9 @@ export function extractSubjectDepth(subjectId: number, subjectById: Map<number, 
 }
 
 export function isValidPersianText(value: string): boolean {
-  return value.trim().length > 0;
+  return normalizePersianText(value).length > 0;
+}
+
+export function stripHtml(value: string): string {
+  return value.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
 }

@@ -191,3 +191,44 @@ Executed final verification pipeline: installed dependencies, completed producti
 ### Notes
 
 Build and Capacitor sync both succeeded without compile or plugin integration errors.
+
+## 2026-06-10 09:30
+
+### Task
+
+Stabilized core CRUD flows and aligned the UI closer to the original usage vision without changing the architecture: moved create/category flows into reusable modal dialogs, made the FAB open create modals, fixed Goals and Tasks add/edit behavior, improved Persian text normalization, added category chip filtering, shortened long-text list rendering, and tightened category/foreign-key safety for local persistence.
+
+### Files Changed
+
+- tsconfig.json
+- DEV_LOG.md
+- src/hooks.ts
+- src/utils.ts
+- src/design/global.css
+- src/components/Fab.tsx
+- src/components/Modal.tsx
+- src/components/CategoryChips.tsx
+- src/db/repositories/commonRepository.ts
+- src/features/goals/GoalsPage.tsx
+- src/features/tasks/TasksPage.tsx
+- src/features/projects/ProjectsPage.tsx
+- src/features/recurring/RecurringTasksPage.tsx
+- src/features/daily-logs/DailyLogsPage.tsx
+
+### Decisions
+
+- Kept the existing modular architecture intact and limited changes to shared UI primitives, page state handling, and persistence safety guards.
+- Prioritized CRUD reliability and daily usability before any advanced behavior.
+- Used one reusable modal component and one reusable category-chip component to avoid repeating inline forms across pages.
+- Normalized Persian text on write paths to reduce Arabic/Persian character inconsistencies in search and display.
+- Added a minimal TypeScript deprecation-silencing config so the existing build pipeline remains functional under the installed TypeScript version.
+
+### TODO
+
+- Manually verify every CRUD flow on Android runtime, especially SQLite-backed category deletion, task editing, and recurring reminder behavior.
+- Re-run Capacitor/Android runtime QA after browser-side build verification is complete.
+- If needed, tighten recurring notification cleanup for delete/edit in a later stability pass after manual verification.
+
+### Notes
+
+The build initially failed on a TypeScript 6 deprecation error for `baseUrl`; this was fixed with the smallest possible compiler config change so functional verification could continue.

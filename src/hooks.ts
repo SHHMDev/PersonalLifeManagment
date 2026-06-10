@@ -25,8 +25,21 @@ export function useAsyncData<T>(loader: () => Promise<T>, deps: unknown[] = []):
 
   useEffect(() => {
     void reload();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 
   return { data, loading, error, reload };
+}
+
+export function useFloatingAction(pathname: string, onAction: () => void): void {
+  useEffect(() => {
+    const handler = (event: Event): void => {
+      const detail = (event as CustomEvent<{ path?: string }>).detail;
+      if (detail?.path === pathname) {
+        onAction();
+      }
+    };
+
+    window.addEventListener('plm:floating-action', handler as EventListener);
+    return () => window.removeEventListener('plm:floating-action', handler as EventListener);
+  }, [onAction, pathname]);
 }

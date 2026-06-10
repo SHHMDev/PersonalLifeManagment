@@ -18,7 +18,10 @@ export function Fab(): JSX.Element {
     <button
       type="button"
       aria-label="افزودن"
-      onClick={() => navigate(target)}
+      onClick={() => {
+        window.dispatchEvent(new CustomEvent('plm:floating-action', { detail: { path: target } }));
+        navigate(target);
+      }}
       style={{
         position: 'fixed',
         right: '20px',

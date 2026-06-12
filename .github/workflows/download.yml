@@ -1,20 +1,45 @@
-name: Download Android Commandline Tools
+name: Android SDK + Emulator
 
 on:
   workflow_dispatch:
 
 jobs:
-  download:
-    runs-on: ubuntu-latest
+  build:
+    runs-on: windows-latest
 
     steps:
-      - name: Download
+      - name: Setup folders
         run: |
-          wget -O commandlinetools.zip \
-          https://dl.google.com/android/repository/commandlinetools-win-14742923_latest.zip
+          mkdir C:\Android
 
-      - name: Upload Artifact
+      - name: Download cmdline tools
+        run: |
+          curl -L -o cmdline.zip https://dl.google.com/android/repository/commandlinetools-win-14742923_latest.zip
+          tar -xf cmdline.zip -C C:\Android
+
+      - name: Install SDK components
+        run: |
+          $sdk = "C:\Android\cmdline-tools\bin\sdkmanager.bat"
+
+          yes | & $sdk --sdk_root=C:\Android --licenses
+
+          & $sdk --sdk_root=C:\Android "platform-tools"
+          & $sdk --sdk_root=C:\Android "platforms;android-35"
+          & $sdk --sdk_root=C:\Android "build-tools;35.0.0"
+
+          & $sdk --sdk_root=C:\Android "emulator"
+          & $sdk --sdk_root=C:\Android "system-images;android-35;google_apis;x86_64"
+
+      - name: Create AVD
+        run: |
+          echo no | C:\Android\cmdline-tools\bin\avdmanager.bat create avd -n test_api35 -k "system-images;android-35;google_apis;x86_64"
+
+      - name: Zip SDK
+        run: |
+          Compress-Archive -Path C:\Android\* -DestinationPath android-sdk-emulator.zip
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: android-commandline-tools
-          path: commandlinetools.zip
+          name: android-sdk-emulator
+          path: android-sdk-emulator.zip

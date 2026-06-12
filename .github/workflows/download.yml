@@ -1,0 +1,20 @@
+name: Download Android Commandline Tools
+
+on:
+  workflow_dispatch:
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download
+        run: |
+          wget -O commandlinetools.zip \
+          https://dl.google.com/android/repository/commandlinetools-win-14742923_latest.zip
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-commandline-tools
+          path: commandlinetools.zip

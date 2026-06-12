@@ -8,33 +8,29 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Setup Android SDK root
+      - name: Clean environment
         shell: pwsh
         run: |
-          $sdkRoot = "C:\Android\SDK"
-          $toolsZip = "cmdline.zip"
-
           Remove-Item "C:\Android" -Recurse -Force -ErrorAction SilentlyContinue
-
-          New-Item -ItemType Directory -Path $sdkRoot -Force | Out-Null
+          New-Item -ItemType Directory -Path "C:\Android\SDK" -Force | Out-Null
 
       - name: Download cmdline tools
         shell: pwsh
         run: |
           Invoke-WebRequest `
             -Uri "https://dl.google.com/android/repository/commandlinetools-win-14742923_latest.zip" `
-            -OutFile cmdline.zip
+            -OutFile "cmdline.zip"
 
-      - name: Extract cmdline tools
+      - name: Extract cmdline tools (FIXED STRUCTURE)
         shell: pwsh
         run: |
-          Expand-Archive cmdline.zip -DestinationPath C:\Android\tmp
+          Expand-Archive cmdline.zip -DestinationPath "C:\Android\tmp"
 
-          New-Item -ItemType Directory -Path C:\Android\SDK\cmdline-tools\latest -Force | Out-Null
+          New-Item -ItemType Directory -Path "C:\Android\SDK\cmdline-tools" -Force | Out-Null
 
-          Move-Item C:\Android\tmp\cmdline-tools\* C:\Android\SDK\cmdline-tools\latest\ -Force
+          Move-Item "C:\Android\tmp\cmdline-tools" "C:\Android\SDK\cmdline-tools\latest"
 
-          Remove-Item C:\Android\tmp -Recurse -Force
+          Remove-Item "C:\Android\tmp" -Recurse -Force
 
       - name: Install SDK packages
         shell: pwsh
@@ -50,17 +46,25 @@ jobs:
           cmd /c "$sdk --sdk_root=$sdkRoot emulator"
           cmd /c "$sdk --sdk_root=$sdkRoot system-images;android-35;google_apis;x86_64"
 
-      - name: Create AVD
+      - name: Verify system image install
         shell: pwsh
         run: |
-          echo no | C:\Android\SDK\cmdline-tools\latest\bin\avdmanager.bat create avd `
+          $sdkRoot = "C:\Android\SDK"
+          & "$sdkRoot\cmdline-tools\latest\bin\sdkmanager.bat" --sdk_root=$sdkRoot --list | findstr system-images
+
+      - name: Create AVD (FIXED - uses avdmanager from correct SDK root)
+        shell: pwsh
+        run: |
+          $sdkRoot = "C:\Android\SDK"
+
+          echo no | & "$sdkRoot\cmdline-tools\latest\bin\avdmanager.bat" create avd `
             -n pixel_api35 `
             -k "system-images;android-35;google_apis;x86_64"
 
       - name: Zip SDK
         shell: pwsh
         run: |
-          Compress-Archive -Path C:\Android\SDK\* -DestinationPath android-sdk-emulator.zip
+          Compress-Archive -Path "C:\Android\SDK\*" -DestinationPath "android-sdk-emulator.zip"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

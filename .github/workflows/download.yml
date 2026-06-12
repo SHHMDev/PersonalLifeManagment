@@ -1,4 +1,4 @@
-name: Android SDK + Emulator
+name: Android SDK + Emulator Setup
 
 on:
   workflow_dispatch:
@@ -8,37 +8,63 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Setup folders
+      # 1. Create Android folder (safe)
+      - name: Setup Android directory
+        shell: pwsh
         run: |
-          mkdir C:\Android
+          if (!(Test-Path "C:\Android")) {
+            New-Item -ItemType Directory -Path "C:\Android"
+          }
 
-      - name: Download cmdline tools
+      # 2. Download cmdline tools
+      - name: Download Android cmdline tools
+        shell: pwsh
         run: |
-          curl -L -o cmdline.zip https://dl.google.com/android/repository/commandlinetools-win-14742923_latest.zip
-          tar -xf cmdline.zip -C C:\Android
+          Invoke-WebRequest `
+            -Uri "https://dl.google.com/android/repository/commandlinetools-win-14742923_latest.zip" `
+            -OutFile "cmdline.zip"
 
+          Expand-Archive cmdline.zip -DestinationPath C:\Android
+
+          # rename to correct structure
+          if (!(Test-Path "C:\Android\cmdline-tools\latest")) {
+            New-Item -ItemType Directory -Path "C:\Android\cmdline-tools\latest" -Force
+          }
+
+          Move-Item C:\Android\cmdline-tools\bin C:\Android\cmdline-tools\latest\bin -Force
+
+      # 3. Install SDK packages
       - name: Install SDK components
+        shell: pwsh
         run: |
-          $sdk = "C:\Android\cmdline-tools\bin\sdkmanager.bat"
+          $sdk = "C:\Android\cmdline-tools\latest\bin\sdkmanager.bat"
 
-          yes | & $sdk --sdk_root=C:\Android --licenses
+          # accept licenses
+          cmd /c "echo y | $sdk --sdk_root=C:\Android --licenses"
 
-          & $sdk --sdk_root=C:\Android "platform-tools"
-          & $sdk --sdk_root=C:\Android "platforms;android-35"
-          & $sdk --sdk_root=C:\Android "build-tools;35.0.0"
+          # install core packages
+          cmd /c "$sdk --sdk_root=C:\Android platform-tools"
+          cmd /c "$sdk --sdk_root=C:\Android platforms;android-35"
+          cmd /c "$sdk --sdk_root=C:\Android build-tools;35.0.0"
+          cmd /c "$sdk --sdk_root=C:\Android emulator"
+          cmd /c "$sdk --sdk_root=C:\Android system-images;android-35;google_apis;x86_64"
 
-          & $sdk --sdk_root=C:\Android "emulator"
-          & $sdk --sdk_root=C:\Android "system-images;android-35;google_apis;x86_64"
-
-      - name: Create AVD
+      # 4. Create AVD
+      - name: Create Emulator (AVD)
+        shell: pwsh
         run: |
-          echo no | C:\Android\cmdline-tools\bin\avdmanager.bat create avd -n test_api35 -k "system-images;android-35;google_apis;x86_64"
+          echo no | C:\Android\cmdline-tools\latest\bin\avdmanager.bat create avd `
+            -n pixel_api35 `
+            -k "system-images;android-35;google_apis;x86_64"
 
-      - name: Zip SDK
+      # 5. Zip SDK
+      - name: Create SDK archive
+        shell: pwsh
         run: |
           Compress-Archive -Path C:\Android\* -DestinationPath android-sdk-emulator.zip
 
-      - name: Upload artifact
+      # 6. Upload artifact
+      - name: Upload SDK
         uses: actions/upload-artifact@v4
         with:
           name: android-sdk-emulator

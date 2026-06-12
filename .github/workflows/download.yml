@@ -41,7 +41,6 @@ jobs:
           $sdk = "$sdkRoot\cmdline-tools\latest\bin\sdkmanager.bat"
 
           cmd /c "echo y | $sdk --sdk_root=$sdkRoot --licenses"
-
           cmd /c "$sdk --sdk_root=$sdkRoot --update"
 
           cmd /c "$sdk --sdk_root=$sdkRoot `"platform-tools`""
@@ -56,19 +55,19 @@ jobs:
           $sdkRoot = "C:\Android\SDK"
           & "$sdkRoot\cmdline-tools\latest\bin\sdkmanager.bat" --sdk_root=$sdkRoot --list_installed
 
-      - name: Create AVD
+      - name: Create AVD (FIXED ORDER)
         shell: pwsh
         run: |
           $sdkRoot = "C:\Android\SDK"
           $avd = "$sdkRoot\cmdline-tools\latest\bin\avdmanager.bat"
 
-          cmd /c "echo no | $avd --sdk_root=$sdkRoot create avd -n pixel_api35 -k `"system-images;android-35;google_apis;x86_64`""
+          cmd /c "echo no | $avd create avd --sdk_root=$sdkRoot -n pixel_api35 -k `"system-images;android-35;google_apis;x86_64`""
 
       - name: Verify AVD
         shell: pwsh
         run: |
           $sdkRoot = "C:\Android\SDK"
-          & "$sdkRoot\cmdline-tools\latest\bin\avdmanager.bat" --sdk_root=$sdkRoot list avd
+          & "$sdkRoot\cmdline-tools\latest\bin\avdmanager.bat" list avd
 
       - name: Zip Android SDK
         shell: pwsh

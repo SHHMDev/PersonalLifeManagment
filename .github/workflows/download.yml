@@ -1,4 +1,4 @@
-name: Android SDK + Emulator
+name: Android SDK Offline Package
 
 on:
   workflow_dispatch:
@@ -8,14 +8,12 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      # 1) پاک‌سازی و آماده‌سازی
       - name: Clean environment
         shell: pwsh
         run: |
           Remove-Item "C:\Androiiid" -Recurse -Force -ErrorAction SilentlyContinue
           New-Item -ItemType Directory -Path "C:\Androiiid\SDK" -Force | Out-Null
 
-      # 2) دانلود cmdline-tools
       - name: Download Android cmdline-tools
         shell: pwsh
         run: |
@@ -23,105 +21,48 @@ jobs:
             -Uri "https://dl.google.com/android/repository/commandlinetools-win-14742923_latest.zip" `
             -OutFile "cmdline.zip"
 
-      # 3) اکسترکت cmdline-tools
       - name: Extract cmdline-tools
         shell: pwsh
         run: |
           Expand-Archive cmdline.zip -DestinationPath "C:\Androiiid\tmp"
-
-          New-Item -ItemType Directory -Path "C:\Androiiid\SDK\cmdline-tools" -Force | Out-Null
           Move-Item "C:\Androiiid\tmp\cmdline-tools" "C:\Androiiid\SDK\cmdline-tools\latest"
-
           Remove-Item "C:\Androiiid\tmp" -Recurse -Force
           Remove-Item "cmdline.zip"
 
-      # 4) تنظیم ANDROID_SDK_ROOT روی مسیر جدید
       - name: Set ANDROID_SDK_ROOT
         shell: pwsh
         run: |
           echo "ANDROID_SDK_ROOT=C:\Androiiid\SDK" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-      # 5) نصب پکیج‌های SDK (فعلاً با android-34 که پایدارتر است)
       - name: Install SDK packages
         shell: pwsh
         run: |
           $sdkRoot = $env:ANDROID_SDK_ROOT
           $sdk = "$sdkRoot\cmdline-tools\latest\bin\sdkmanager.bat"
 
-          Write-Host "Using ANDROID_SDK_ROOT = $sdkRoot"
-          Write-Host "sdkmanager path = $sdk"
-
-          # قبول لایسنس‌ها
           cmd /c "echo y | `"$sdk`" --sdk_root=$sdkRoot --licenses"
 
-          # آپدیت کلی
-          cmd /c "`"$sdk`" --sdk_root=$sdkRoot --update"
-
-          # پکیج‌های اصلی
           cmd /c "`"$sdk`" --sdk_root=$sdkRoot `"platform-tools`""
+          cmd /c "`"$sdk`" --sdk_root=$sdkRoot `"emulator`""
           cmd /c "`"$sdk`" --sdk_root=$sdkRoot `"platforms;android-34`""
           cmd /c "`"$sdk`" --sdk_root=$sdkRoot `"build-tools;34.0.0`""
-          cmd /c "`"$sdk`" --sdk_root=$sdkRoot `"emulator`""
+          cmd /c "`"$sdk`" --sdk_root=$sdkRoot `"system-images;android-34;google_apis;x86_64`""
 
-          # system image: android-34 + google_apis + x86_64
-          cmd /c "`"$sdk`" --sdk_root=$sdkRoot --channel=0 `"system-images;android-34;google_apis;x86_64`""
-
-      # 6) بررسی system image روی دیسک (مسیر جدید)
-      - name: Verify system image on disk
-        shell: pwsh
-        run: |
-          $sdkRoot = $env:ANDROID_SDK_ROOT
-          $sysImgPath = Join-Path $sdkRoot "system-images\android-34\google_apis\x86_64"
-
-          Write-Host "Checking system image path: $sysImgPath"
-          if (-Not (Test-Path $sysImgPath)) {
-            Write-Error "System image directory not found: $sysImgPath"
-          }
-
-          Get-ChildItem -Recurse $sysImgPath
-
-      # 7) لیست پکیج‌های نصب‌شده (برای دیباگ و اطمینان)
-      - name: List installed SDK packages
+      - name: List installed packages
         shell: pwsh
         run: |
           $sdkRoot = $env:ANDROID_SDK_ROOT
           & "$sdkRoot\cmdline-tools\latest\bin\sdkmanager.bat" --sdk_root=$sdkRoot --list_installed
 
-      # 8) ساخت AVD (بدون --sdk_root؛ استفاده از ANDROID_SDK_ROOT)
-      - name: Create AVD
-        shell: pwsh
-        run: |
-          $sdkRoot = $env:ANDROID_SDK_ROOT
-          $avd = "$sdkRoot\cmdline-tools\latest\bin\avdmanager.bat"
-
-          Write-Host "Using ANDROID_SDK_ROOT = $sdkRoot"
-          Write-Host "avdmanager path = $avd"
-
-          # حذف AVD قدیمی اگر بود
-          & $avd delete avd -n pixel_api34 2>$null || Write-Host "No previous AVD named pixel_api34"
-
-          # ساخت AVD (کلیدها مهم‌اند: -n و -k)
-          cmd /c "echo no | `"$avd`" create avd -n pixel_api34 -k `"system-images;android-34;google_apis;x86_64`""
-
-      # 9) تأیید AVD
-      - name: Verify AVD
-        shell: pwsh
-        run: |
-          $sdkRoot = $env:ANDROID_SDK_ROOT
-          & "$sdkRoot\cmdline-tools\latest\bin\avdmanager.bat" list avd
-
-      # 10) زیپ کردن کل SDK (مسیر جدید)
       - name: Zip Android SDK
         shell: pwsh
         run: |
-          $sdkRoot = $env:ANDROID_SDK_ROOT
           Compress-Archive `
-            -Path "$sdkRoot\*" `
-            -DestinationPath "android-sdk-emulator.zip"
+            -Path "C:\Androiiid\SDK\*" `
+            -DestinationPath "android-sdk-offline.zip"
 
-      # 11) آپلود artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: android-sdk-emulator
-          path: android-sdk-emulator.zip
+          name: android-sdk-offline
+          path: android-sdk-offline.zip
